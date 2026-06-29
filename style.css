@@ -179,16 +179,18 @@ ul { list-style: none; }
 
 .btn--primary:hover { background: #cf6e30; }
 
-.btn--line {
+.btn--tel {
   flex-direction: row;
-  gap: 8px;
-  background: var(--color-line);
+  background: var(--color-main);
   color: var(--color-white);
-  padding: 16px 32px;
-  box-shadow: 0 6px 20px rgba(6, 199, 85, 0.35);
+  padding: 14px 20px;
+  font-size: 0.9rem;
+  box-shadow: var(--shadow-sm);
 }
 
-.btn--line:hover { background: #05b34c; }
+.btn--tel:hover {
+  background: var(--color-main-dark);
+}
 
 .btn--white {
   background: var(--color-white);
@@ -1398,16 +1400,11 @@ ul { list-style: none; }
   min-width: 0;
 }
 
-.fixed-cta__line {
+.fixed-cta__tel {
   flex-shrink: 0;
-  width: 52px;
-  height: 52px;
-  padding: 0;
-  border-radius: 50%;
-  flex-direction: row;
+  min-width: 72px;
+  padding: 14px 18px;
 }
-
-.fixed-cta__line .btn__icon { width: 26px; height: 26px; }
 
 /* ========================================
    Responsive
