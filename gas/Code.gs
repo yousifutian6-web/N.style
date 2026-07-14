@@ -1,13 +1,17 @@
 /**
  * N.style お問い合わせフォーム用 Google Apps Script
  *
- * 【重要】訪問者にGoogleログインを求めないため、デプロイ設定は必ず次のとおりにしてください。
+ * 【重要】デプロイ設定
  * - 種類: ウェブアプリ
- * - 実行するユーザー: 自分（スクリプトの所有者）
+ * - 実行するユーザー: 自分
  * - アクセスできるユーザー: 全員
+ * - コード変更後は必ず「新しいデプロイ」または「デプロイを管理→編集→新バージョン」
  *
- * このスクリプトは「スプレッドシートに紐づいた Apps Script」として使います。
- * スプレッドシートIDや秘密情報をフロントエンドに書かないでください。
+ * 【スプレッドシートの指定（推奨）】
+ * 1. 書き込みたいシートを開く
+ * 2. URLの /d/ と /edit の間が ID
+ *    例: https://docs.google.com/spreadsheets/d/ここがID/edit
+ * 3. Apps Script で setSpreadsheetId_() を1回実行（下記）
  */
 
 var SHEET_NAME = 'お問い合わせ';
@@ -18,9 +22,8 @@ var HEADERS = [
   '電話番号',
   'お問い合わせ内容'
 ];
-
-// 簡易レート制限（同一メールの連続送信をブロック）
 var RATE_LIMIT_SECONDS = 60;
+var PROP_SPREADSHEET_ID = 'SPREADSHEET_ID';
 
 function doPost(e) {
   try {
@@ -37,7 +40,8 @@ function doPost(e) {
       });
     }
 
-    var sheet = getOrCreateSheet_();
+    var ss = getSpreadsheet_();
+    var sheet = getOrCreateSheet_(ss);
     var inquiryText = buildInquiryText_(data);
 
     sheet.appendRow([
@@ -47,25 +51,89 @@ function doPost(e) {
       data.phone,
       inquiryText
     ]);
+    SpreadsheetApp.flush();
 
     return jsonResponse_({
       status: 'success',
-      message: 'お問い合わせを受け付けました。'
+      message: 'お問い合わせを受け付けました。',
+      spreadsheetName: ss.getName(),
+      spreadsheetUrl: ss.getUrl(),
+      sheetName: sheet.getName(),
+      savedRow: sheet.getLastRow()
     });
   } catch (err) {
     return jsonResponse_({
       status: 'error',
-      message: 'サーバーでエラーが発生しました。時間をおいて再度お試しください。'
+      message: 'サーバーでエラーが発生しました: ' + String(err && err.message ? err.message : err)
     });
   }
 }
 
-/** 動作確認用（ブラウザでURLを開くとJSONが返ります） */
+/**
+ * ブラウザでWebアプリURLを開くと、接続先スプレッドシートが分かります。
+ */
 function doGet() {
-  return jsonResponse_({
-    status: 'ok',
-    message: 'N.style contact form endpoint is running'
-  });
+  try {
+    var ss = getSpreadsheet_();
+    var sheet = ss.getSheetByName(SHEET_NAME);
+    return jsonResponse_({
+      status: 'ok',
+      message: 'N.style contact form endpoint is running',
+      spreadsheetName: ss.getName(),
+      spreadsheetUrl: ss.getUrl(),
+      spreadsheetId: ss.getId(),
+      targetSheet: SHEET_NAME,
+      targetSheetExists: !!sheet,
+      targetSheetLastRow: sheet ? sheet.getLastRow() : 0,
+      allSheets: ss.getSheets().map(function (s) { return s.getName(); })
+    });
+  } catch (err) {
+    return jsonResponse_({
+      status: 'error',
+      message: String(err && err.message ? err.message : err)
+    });
+  }
+}
+
+/**
+ * ★ 初回だけ手动実行してください
+ * Apps Script画面で関数「setSpreadsheetId」を選んで実行。
+ * 下の YOUR_SPREADSHEET_ID を実際のIDに書き換えてから実行。
+ */
+function setSpreadsheetId() {
+  var id = 'YOUR_SPREADSHEET_ID'; // ← ここを書き換える
+  if (!id || id === 'YOUR_SPREADSHEET_ID') {
+    throw new Error('YOUR_SPREADSHEET_ID を実際のスプレッドシートIDに書き換えてください');
+  }
+  // IDが正しいか確認
+  SpreadsheetApp.openById(id);
+  PropertiesService.getScriptProperties().setProperty(PROP_SPREADSHEET_ID, id);
+}
+
+/** 設定確認用（Apps Scriptで実行） */
+function showSpreadsheetSetting() {
+  var ss = getSpreadsheet_();
+  Logger.log('name: ' + ss.getName());
+  Logger.log('url: ' + ss.getUrl());
+  Logger.log('id: ' + ss.getId());
+}
+
+function getSpreadsheet_() {
+  var id = PropertiesService.getScriptProperties().getProperty(PROP_SPREADSHEET_ID);
+  if (id) {
+    return SpreadsheetApp.openById(id);
+  }
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (ss) {
+    return ss;
+  }
+
+  throw new Error(
+    '書き込み先スプレッドシートが特定できません。' +
+    'setSpreadsheetId を実行してシートIDを登録するか、' +
+    'スプレッドシートから「拡張機能→Apps Script」で開いたプロジェクトを使ってください。'
+  );
 }
 
 function parseRequest_(e) {
@@ -87,12 +155,10 @@ function parseRequest_(e) {
 }
 
 function validatePayload_(data) {
-  // ボット対策: ハニーポットが埋まっていたら拒否（成功風の応答にして学習されにくくする）
   if (data.honeypot) {
     return { ok: false, message: '送信に失敗しました。' };
   }
 
-  // ボット対策: フォーム表示から3秒未満の送信を拒否
   if (!data.elapsedMs || data.elapsedMs < 3000) {
     return { ok: false, message: '送信に失敗しました。ページを再読み込みしてから再度お試しください。' };
   }
@@ -125,7 +191,6 @@ function validatePayload_(data) {
     return { ok: false, message: 'お悩みの内容が不正です。' };
   }
 
-  // 簡易スパム: メッセージ内の不審なURL過多
   var urlCount = (data.message.match(/https?:\/\//gi) || []).length;
   if (urlCount >= 3) {
     return { ok: false, message: '送信内容を確認できませんでした。' };
@@ -149,12 +214,14 @@ function buildInquiryText_(data) {
 }
 
 function isDuplicateRecent_(email) {
-  var sheet = getOrCreateSheet_();
+  var ss = getSpreadsheet_();
+  var sheet = getOrCreateSheet_(ss);
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return false;
 
   var startRow = Math.max(2, lastRow - 30);
-  var values = sheet.getRange(startRow, 1, lastRow - startRow + 1, 3).getValues();
+  var numRows = lastRow - startRow + 1;
+  var values = sheet.getRange(startRow, 1, numRows, 3).getValues();
   var now = new Date().getTime();
 
   for (var i = values.length - 1; i >= 0; i--) {
@@ -170,12 +237,7 @@ function isDuplicateRecent_(email) {
   return false;
 }
 
-function getOrCreateSheet_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  if (!ss) {
-    throw new Error('bound spreadsheet not found');
-  }
-
+function getOrCreateSheet_(ss) {
   var sheet = ss.getSheetByName(SHEET_NAME);
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_NAME);
@@ -190,6 +252,14 @@ function getOrCreateSheet_() {
     sheet.setColumnWidth(3, 220);
     sheet.setColumnWidth(4, 140);
     sheet.setColumnWidth(5, 420);
+  } else {
+    // 見出しが無い／違う場合でも1行目を整える
+    var first = sheet.getRange(1, 1, 1, HEADERS.length).getValues()[0];
+    if (String(first[0]) !== HEADERS[0]) {
+      sheet.insertRowBefore(1);
+      sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]).setFontWeight('bold');
+      sheet.setFrozenRows(1);
+    }
   }
 
   return sheet;

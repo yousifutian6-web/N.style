@@ -172,9 +172,20 @@
       })
       .then(function (data) {
         if (data && data.status === 'success') {
+          var detail = '';
+          if (data.sheetName || data.savedRow) {
+            detail =
+              '（保存先: ' +
+              (data.sheetName || 'お問い合わせ') +
+              (data.savedRow ? ' の ' + data.savedRow + '行目' : '') +
+              '）';
+          }
+          if (data.spreadsheetUrl) {
+            console.log('[N.style] saved to', data.spreadsheetName, data.spreadsheetUrl, detail);
+          }
           setStatus(
             'success',
-            'お問い合わせありがとうございます。内容を確認のうえ、24時間以内にご返信いたします。'
+            'お問い合わせありがとうございます。内容を確認のうえ、24時間以内にご返信いたします。' + detail
           );
           form.reset();
           pageLoadedAt = Date.now();
