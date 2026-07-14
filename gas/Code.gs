@@ -20,8 +20,17 @@ var HEADERS = [
   'お名前',
   'メールアドレス',
   '電話番号',
+  'ご希望',
   'お問い合わせ内容'
 ];
+var ALLOWED_SERVICES = {
+  '無料面談を希望': true,
+  '体験授業を希望': true,
+  '無料面談と体験授業の両方': true,
+  '料金・コースの確認': true,
+  'まずは話を聞いてみたい': true,
+  'その他': true
+};
 var RATE_LIMIT_SECONDS = 60;
 var PROP_SPREADSHEET_ID = 'SPREADSHEET_ID';
 
@@ -49,6 +58,7 @@ function doPost(e) {
       data.name,
       data.email,
       data.phone,
+      data.service,
       inquiryText
     ]);
     SpreadsheetApp.flush();
@@ -146,6 +156,7 @@ function parseRequest_(e) {
     email: normalizeText_(raw.email).toLowerCase(),
     phone: normalizeText_(raw.phone),
     grade: normalizeText_(raw.grade),
+    service: normalizeText_(raw.service),
     concern: normalizeText_(raw.concern),
     message: normalizeText_(raw.message),
     privacy: !!raw.privacy,
@@ -183,6 +194,10 @@ function validatePayload_(data) {
     return { ok: false, message: 'お子さんの学年を選択してください。' };
   }
 
+  if (!data.service || !ALLOWED_SERVICES[data.service]) {
+    return { ok: false, message: 'ご希望の内容を選択してください。' };
+  }
+
   if (data.message && data.message.length > 2000) {
     return { ok: false, message: 'メッセージが長すぎます（2000文字以内）。' };
   }
@@ -201,6 +216,7 @@ function validatePayload_(data) {
 
 function buildInquiryText_(data) {
   var lines = [];
+  lines.push('【ご希望】' + data.service);
   lines.push('【学年】' + data.grade);
   if (data.concern) {
     lines.push('【お悩み】' + data.concern);
@@ -251,15 +267,28 @@ function getOrCreateSheet_(ss) {
     sheet.setColumnWidth(2, 140);
     sheet.setColumnWidth(3, 220);
     sheet.setColumnWidth(4, 140);
-    sheet.setColumnWidth(5, 420);
-  } else {
-    // 見出しが無い／違う場合でも1行目を整える
-    var first = sheet.getRange(1, 1, 1, HEADERS.length).getValues()[0];
-    if (String(first[0]) !== HEADERS[0]) {
-      sheet.insertRowBefore(1);
-      sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]).setFontWeight('bold');
-      sheet.setFrozenRows(1);
-    }
+    sheet.setColumnWidth(5, 200);
+    sheet.setColumnWidth(6, 420);
+    return sheet;
+  }
+
+  // 旧5列（E列=お問い合わせ内容）→ ご希望列を追加して6列構成へ移行
+  var lastCol = Math.max(sheet.getLastColumn(), 1);
+  var first = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  var colE = String(first[4] || '');
+  var colF = String(first[5] || '');
+
+  if (colE === 'お問い合わせ内容' && colF !== 'お問い合わせ内容') {
+    sheet.insertColumnAfter(4);
+    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+    sheet.setColumnWidth(5, 200);
+    sheet.setColumnWidth(6, 420);
+  } else if (String(first[0]) !== HEADERS[0] || colE !== HEADERS[4] || colF !== HEADERS[5]) {
+    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+    sheet.setColumnWidth(5, 200);
+    sheet.setColumnWidth(6, 420);
   }
 
   return sheet;

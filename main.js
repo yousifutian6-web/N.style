@@ -96,6 +96,9 @@
     if (!payload.grade) {
       return 'お子さんの学年を選択してください。';
     }
+    if (!payload.service) {
+      return 'ご希望の内容を選択してください。';
+    }
     if (!payload.privacy) {
       return 'プライバシーポリシーへの同意が必要です。';
     }
@@ -128,6 +131,7 @@
       email: form.email.value.trim(),
       phone: form.phone.value.trim(),
       grade: form.grade.value,
+      service: form.service ? form.service.value : '',
       concern: getConcerns(),
       message: form.message.value.trim(),
       privacy: !!(form.privacy && form.privacy.checked),
