@@ -1,3 +1,6 @@
+# Secrets方式は任意です。現状は config.js（エンコード済み）をリポジトリから配信します。
+# Pages が「Deploy from a branch」の場合でもフォームが動くことを優先しています。
+
 name: Deploy GitHub Pages
 
 on:
@@ -24,28 +27,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Generate config.js from secret
+      - name: Prefer Secret URL when available
         env:
           GAS_WEBAPP_URL: ${{ secrets.GAS_WEBAPP_URL }}
         run: |
-          if [ -z "$GAS_WEBAPP_URL" ]; then
-            echo "ERROR: Repository secret GAS_WEBAPP_URL is not set."
-            exit 1
-          fi
-          if [[ "$GAS_WEBAPP_URL" != https://script.google.com/* ]]; then
-            echo "ERROR: GAS_WEBAPP_URL must start with https://script.google.com/"
-            exit 1
-          fi
-          # 平文をワークフローログに出さない
-          python3 - <<'PY'
-          import os
-          url = os.environ["GAS_WEBAPP_URL"].replace("\\", "\\\\").replace("'", "\\'")
+          if [ -n "$GAS_WEBAPP_URL" ]; then
+            python3 - <<'PY'
+          import os, base64
+          url = os.environ["GAS_WEBAPP_URL"].strip()
+          enc = base64.b64encode(url.encode("utf-8")).decode("ascii")
           with open("config.js", "w", encoding="utf-8") as f:
               f.write("window.NSTYLE_CONFIG = {\n")
-              f.write(f"  gasEndpoint: '{url}'\n")
+              f.write("  gasEndpoint: (function () {\n")
+              f.write(f"    var encoded = '{enc}';\n")
+              f.write("    try { return atob(encoded); } catch (e) { return ''; }\n")
+              f.write("  })()\n")
               f.write("};\n")
-          print("config.js generated (URL hidden from logs).")
+          print("config.js refreshed from secret (encoded).")
           PY
+          else
+            echo "GAS_WEBAPP_URL secret empty; using committed config.js"
+          fi
 
       - name: Prepare site files
         run: |
