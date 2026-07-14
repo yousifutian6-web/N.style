@@ -467,51 +467,65 @@
         <span>返信は24時間以内</span>
       </div>
 
-      <form class="contact-form fade-in" id="contactForm" action="#" method="post">
+      <form
+        class="contact-form fade-in"
+        id="contactForm"
+        action="#"
+        method="post"
+        novalidate
+        data-endpoint="https://script.google.com/macros/s/AKfycby7DiHq5umhJUctT_hPHXYg_7F7-68vZaAkGXlT-d615p9q55E2tdNfVBbT6KhP74_t/exec"
+      >
         <h3 class="contact-form__title">無料相談・お問い合わせフォーム</h3>
+
+        <!-- スパム対策用ハニーポット（人間には非表示。入力されたらボットとして拒否） -->
+        <div class="hp-field" aria-hidden="true">
+          <label for="website">Website</label>
+          <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+        </div>
+
         <div class="form-group">
           <label for="name">お名前<span class="required">必須</span></label>
-          <input type="text" id="name" name="name" required placeholder="例：山田 花子">
+          <input type="text" id="name" name="name" required maxlength="80" placeholder="例：山田 花子" autocomplete="name">
         </div>
         <div class="form-group">
           <label for="email">メールアドレス<span class="required">必須</span></label>
-          <input type="email" id="email" name="email" required placeholder="例：example@email.com">
+          <input type="email" id="email" name="email" required maxlength="254" placeholder="例：example@email.com" autocomplete="email">
         </div>
         <div class="form-group">
           <label for="phone">電話番号<span class="required">必須</span></label>
-          <input type="tel" id="phone" name="phone" required placeholder="例：090-1234-5678">
+          <input type="tel" id="phone" name="phone" required maxlength="20" placeholder="例：090-1234-5678" autocomplete="tel">
         </div>
         <div class="form-group">
           <label for="grade">お子さんの学年<span class="required">必須</span></label>
           <select id="grade" name="grade" required>
             <option value="" disabled selected>選択してください</option>
-            <option value="e1">小学1年生</option>
-            <option value="e2">小学2年生</option>
-            <option value="e3">小学3年生</option>
-            <option value="e4">小学4年生</option>
-            <option value="e5">小学5年生</option>
-            <option value="e6">小学6年生</option>
-            <option value="j1">中学1年生</option>
-            <option value="j2">中学2年生</option>
-            <option value="j3">中学3年生</option>
-            <option value="h1">高校1年生</option>
-            <option value="h2">高校2年生</option>
-            <option value="h3">高校3年生</option>
-            <option value="other">その他</option>
+            <option value="小学1年生">小学1年生</option>
+            <option value="小学2年生">小学2年生</option>
+            <option value="小学3年生">小学3年生</option>
+            <option value="小学4年生">小学4年生</option>
+            <option value="小学5年生">小学5年生</option>
+            <option value="小学6年生">小学6年生</option>
+            <option value="中学1年生">中学1年生</option>
+            <option value="中学2年生">中学2年生</option>
+            <option value="中学3年生">中学3年生</option>
+            <option value="高校1年生">高校1年生</option>
+            <option value="高校2年生">高校2年生</option>
+            <option value="高校3年生">高校3年生</option>
+            <option value="その他">その他</option>
           </select>
         </div>
         <div class="form-group">
           <label>お悩みの内容（任意・複数選択可）</label>
           <div class="checkbox-group">
-            <label><input type="checkbox" name="concern" value="futoukou"> 不登校</label>
-            <label><input type="checkbox" name="concern" value="learning"> 学習の遅れ</label>
-            <label><input type="checkbox" name="concern" value="career"> 進路・受験</label>
-            <label><input type="checkbox" name="concern" value="other"> その他</label>
+            <label><input type="checkbox" name="concern" value="不登校"> 不登校</label>
+            <label><input type="checkbox" name="concern" value="学習の遅れ"> 学習の遅れ</label>
+            <label><input type="checkbox" name="concern" value="進路・受験"> 進路・受験</label>
+            <label><input type="checkbox" name="concern" value="その他"> その他</label>
           </div>
         </div>
         <div class="form-group">
           <label for="message">個別相談で特に聞きたいこと（任意）</label>
-          <textarea id="message" name="message" placeholder="お悩みやご質問をお気軽にご記入ください"></textarea>
+          <textarea id="message" name="message" maxlength="2000" placeholder="お悩みやご質問をお気軽にご記入ください"></textarea>
         </div>
         <div class="form-group form-group--check">
           <label class="privacy-check">
@@ -519,7 +533,8 @@
             <span>プライバシーポリシーに同意する<span class="required">必須</span></span>
           </label>
         </div>
-        <button type="submit" class="btn btn--submit btn--lg">相談内容を送る</button>
+        <button type="submit" class="btn btn--submit btn--lg" id="contactSubmit">相談内容を送る</button>
+        <p class="form-status" id="formStatus" role="status" aria-live="polite" hidden></p>
         <p class="form-note">※ご入力いただいたメールアドレス宛にご返信いたします。迷惑メールフォルダもご確認ください。</p>
       </form>
 
