@@ -1,5 +1,6 @@
-# Secrets方式は任意です。現状は config.js（エンコード済み）をリポジトリから配信します。
-# Pages が「Deploy from a branch」の場合でもフォームが動くことを優先しています。
+# GitHub Pages デプロイ
+# 送信先はリポジトリ内の config.js（エンコード済み）をそのまま使う。
+# Secrets の古いURLで上書きしない（上書きが原因でフォームが旧エンドポイントに向かう事故を防止）。
 
 name: Deploy GitHub Pages
 
@@ -27,30 +28,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prefer Secret URL when available
-        env:
-          GAS_WEBAPP_URL: ${{ secrets.GAS_WEBAPP_URL }}
-        run: |
-          if [ -n "$GAS_WEBAPP_URL" ]; then
-            python3 - <<'PY'
-          import os, base64
-          url = os.environ["GAS_WEBAPP_URL"].strip()
-          enc = base64.b64encode(url.encode("utf-8")).decode("ascii")
-          with open("config.js", "w", encoding="utf-8") as f:
-              f.write("window.NSTYLE_CONFIG = {\n")
-              f.write("  gasEndpoint: (function () {\n")
-              f.write(f"    var encoded = '{enc}';\n")
-              f.write("    try { return atob(encoded); } catch (e) { return ''; }\n")
-              f.write("  })()\n")
-              f.write("};\n")
-          print("config.js refreshed from secret (encoded).")
-          PY
-          else
-            echo "GAS_WEBAPP_URL secret empty; using committed config.js"
-          fi
-
       - name: Prepare site files
         run: |
+          test -f config.js
           mkdir -p _site/images
           cp index.html style.css main.js config.js _site/
           if [ -d images ]; then cp -r images/* _site/images/ || true; fi
