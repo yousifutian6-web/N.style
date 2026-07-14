@@ -38,16 +38,15 @@
 /**
  * Contact form → Google Apps Script Web App
  * - 訪問者のGoogleログインは不要（Webアプリを「全員」公開 + 所有者実行）
- * - スプレッドシートID等の機密情報はフロントに置かない
+ * - WebアプリURLは config.js（git管理外 / Secrets経由）から読み込む
  * - 二重送信防止 / 入力検証 / ハニーポット
  */
 (function () {
   var form = document.getElementById('contactForm');
   if (!form) return;
 
-  // 公開してよい WebアプリURLのみ。スプレッドシートIDや秘密鍵は書かないこと。
-  // HTMLの data-endpoint 属性があればそちらを優先。
-  var GAS_ENDPOINT = form.getAttribute('data-endpoint') || '';
+  var GAS_ENDPOINT =
+    (window.NSTYLE_CONFIG && window.NSTYLE_CONFIG.gasEndpoint) || '';
 
   var submitBtn = document.getElementById('contactSubmit');
   var statusEl = document.getElementById('formStatus');

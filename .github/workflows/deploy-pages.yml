@@ -1,0 +1,66 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate config.js from secret
+        env:
+          GAS_WEBAPP_URL: ${{ secrets.GAS_WEBAPP_URL }}
+        run: |
+          if [ -z "$GAS_WEBAPP_URL" ]; then
+            echo "ERROR: Repository secret GAS_WEBAPP_URL is not set."
+            exit 1
+          fi
+          if [[ "$GAS_WEBAPP_URL" != https://script.google.com/* ]]; then
+            echo "ERROR: GAS_WEBAPP_URL must start with https://script.google.com/"
+            exit 1
+          fi
+          # 平文をワークフローログに出さない
+          python3 - <<'PY'
+          import os
+          url = os.environ["GAS_WEBAPP_URL"].replace("\\", "\\\\").replace("'", "\\'")
+          with open("config.js", "w", encoding="utf-8") as f:
+              f.write("window.NSTYLE_CONFIG = {\n")
+              f.write(f"  gasEndpoint: '{url}'\n")
+              f.write("};\n")
+          print("config.js generated (URL hidden from logs).")
+          PY
+
+      - name: Prepare site files
+        run: |
+          mkdir -p _site/images
+          cp index.html style.css main.js config.js _site/
+          if [ -d images ]; then cp -r images/* _site/images/ || true; fi
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
